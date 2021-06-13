@@ -2,13 +2,12 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const {jwtSecret} = require('../auth/secret');
 const bcrypt = require('bcryptjs');
-const checkCredentials = require('../middleware/check-payload');
 
 // bringing in our db since we dont have a user model
 // (we weren't told to make one either)
 const db = require('../../data/dbConfig');
 
-router.post('/register',checkCredentials,(req, res) => {
+router.post('/register', async (req, res) => {
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -34,35 +33,36 @@ router.post('/register',checkCredentials,(req, res) => {
     4- On FAILED registration due to the `username` being taken,
       the response body should include a string exactly as follows: "username taken".
   */
-
-  //trying out a try catch for our user stuff
+  
+  // middleware was causing issues so i brought the validation portion over
+  function validCredentials(user){
+    return Boolean(user.username && user.password && typeof user.password === "string" )
+  }
+  
   // checking to see user credentials
-  if(checkCredentials(req.body)){
+  if(validCredentials(req.body)){
     try{
       const {username, password} = req.body
-      const user = {username, password}
       // setting the number of times we want our bcrypt before saving
       const rounds = process.env.BCRYPT_ROUNDS || 8;
-      const hash = bcrypt.hashSync(user.password, rounds)
-      
       // I want to hash our password based on our rounds
-      user.password = hash
-      
-      return db('users').insert(user)
-        .then(userData => {
-          res.status(201).json(userData)
-        });
-
-    }catch(err){
+      const hash = bcrypt.hashSync(password, rounds)
+      // new user to add into the db with hashed password
+      const newUser = {username, password: hash}
+      // needed to make post asynchronus for it to add the new user
+      const addedUser = await db('users').insert(newUser)
+      res.json(addedUser)
+    }catch{
       res.status(500).json({message: 'username taken'})
     }
-
   }else{
     res.status(400).json({message: 'username and password required'})
   }
 });
 
-router.post('/login', checkCredentials, async (req, res, next) => {
+
+
+router.post('/login', async (req, res) => {
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -86,11 +86,17 @@ router.post('/login', checkCredentials, async (req, res, next) => {
     4- On FAILED login due to `username` not existing in the db, or `password` being incorrect,
       the response body should include a string exactly as follows: "invalid credentials".
   */
+
+  function validCredentials(user){
+    return Boolean(user.username && user.password && typeof user.password === "string" )
+  }
+
+  // grabbing our info from our request body to use in our validation
   const { username, password } = req.body
 
-  if(checkCredentials({username})) {
-    // grabbing our user data based on the hashed password in the database
-    await db('users').where( "username", {username})
+  if(validCredentials(req.body)) {
+    // grabbing our user data based on the unique username
+    await db('users').where( "username", username)
       .then(([user]) => {
         // comparing our user hash to the one in the db making sure its the proper user/credential
         if(user && bcrypt.compareSync( password, user.password)) {
@@ -100,7 +106,9 @@ router.post('/login', checkCredentials, async (req, res, next) => {
           res.status(401).json({ message: 'Invalid credentials' })
         }
       })
-      .catch(next)   
+      .catch(err => {
+        res.status(500).json({message: err.message})
+      })   
   } else {
     res.status(400).json({
       message: "username and password required"
