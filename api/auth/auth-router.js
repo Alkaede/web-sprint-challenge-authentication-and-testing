@@ -51,7 +51,7 @@ router.post('/register',checkCredentials,(req, res, next) => {
       .catch(next)
       
   }else{
-    res.status(400).json({message: 'username is already in use'})
+    res.status(400).json({message: 'username is taken'})
   }
 
 
@@ -83,9 +83,9 @@ router.post('/login', checkCredentials, async (req, res, next) => {
   */
   const { username, password } = req.body
 
-  if(checkCredentials(username)) {
+  if(checkCredentials({username})) {
     // grabbing our user data based on the hashed password in the database
-    await db('users').where( "username", username)
+    await db('users').where( "username", {username})
       .then(([user]) => {
         // comparing our user hash to the one in the db making sure its the proper user/credential
         if(user && bcrypt.compareSync( password, user.password)) {
