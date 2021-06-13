@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const {jwtSecret } = require('../auth/secret.js');
 
 module.exports = (req, res, next) => {
-  next();
+  // next();
   /*
     IMPLEMENT
 
@@ -19,7 +19,7 @@ module.exports = (req, res, next) => {
   const token = req.headers.authorization;
 
   if(!token){
-    return res.status(401).json({message: 'token required'})
+    res.status(401).json({message: 'token required'})
   }else{
     // checking the token for our requirements
     jwt.verify(token, jwtSecret, (err, decoded) => {
@@ -27,7 +27,7 @@ module.exports = (req, res, next) => {
         res.status(401).json({message: 'token invalid'})
       }
       // have to decode our token when verifying
-      req.decodedJwt = decoded;
+      req.decodedToken = decoded;
       next();
     });
   }
