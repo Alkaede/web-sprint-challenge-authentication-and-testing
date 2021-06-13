@@ -8,7 +8,7 @@ const checkCredentials = require('../middleware/check-payload');
 // (we weren't told to make one either)
 const db = require('../../data/dbConfig');
 
-router.post('/register',checkCredentials,(req, res, next) => {
+router.post('/register',checkCredentials,(req, res) => {
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -34,27 +34,32 @@ router.post('/register',checkCredentials,(req, res, next) => {
     4- On FAILED registration due to the `username` being taken,
       the response body should include a string exactly as follows: "username taken".
   */
-  let user = req.body
 
+  //trying out a try catch for our user stuff
   // checking to see user credentials
-  if(checkCredentials(user)){
-    // setting the number of times we want our bcrypt before saving
-    const rounds = process.env.BCRYPT_ROUNDS || 8;
-    const hash = bcrypt.hashSync(user.password, rounds)
-    
-    // I want to hash our password based on our rounds
-    user.password = hash
-    return db('users').insert(user)
-      .then(userData => {
-        res.status(201).json(userData)
-      })
-      .catch(next)
+  if(checkCredentials(req.body)){
+    try{
+      const {username, password} = req.body
+      const user = {username, password}
+      // setting the number of times we want our bcrypt before saving
+      const rounds = process.env.BCRYPT_ROUNDS || 8;
+      const hash = bcrypt.hashSync(user.password, rounds)
       
+      // I want to hash our password based on our rounds
+      user.password = hash
+      
+      return db('users').insert(user)
+        .then(userData => {
+          res.status(201).json(userData)
+        });
+
+    }catch(err){
+      res.status(500).json({message: 'username taken'})
+    }
+
   }else{
-    res.status(400).json({message: 'username is taken'})
+    res.status(400).json({message: 'username and password required'})
   }
-
-
 });
 
 router.post('/login', checkCredentials, async (req, res, next) => {
