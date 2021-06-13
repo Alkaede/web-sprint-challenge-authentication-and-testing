@@ -51,7 +51,7 @@ router.post('/register', async (req, res) => {
       const newUser = {username, password: hash}
       // needed to make post asynchronus for it to add the new user
       const addedUser = await db('users').insert(newUser)
-      res.json(addedUser.id)
+      res.status(201).json(addedUser)
     }catch{
       res.status(500).json({message: 'username taken'})
     }
